@@ -1,13 +1,15 @@
 package main
 
 import (
+	"fmt"
+	"gioui.org/font/opentype"
+	"gioui.org/text"
 	"image/color"
 	"log"
 	"os"
 	"strconv"
 
 	"gioui.org/app"             // app contains Window handling.
-	"gioui.org/font/gofont"     // gofont is used for loading the default font.
 	"gioui.org/io/key"          // key is used for keyboard events.
 	"gioui.org/io/system"       // system is used for system events (e.g. closing the window).
 	"gioui.org/layout"          // layout is used for layouting widgets.
@@ -15,6 +17,7 @@ import (
 	"gioui.org/unit"            // unit is used to define pixel-independent sizes
 	"gioui.org/widget"          // widget contains state handling for widgets.
 	"gioui.org/widget/material" // material contains material design widgets.
+	"github.com/hajimehoshi/chinesegamefonts"
 )
 
 func main() {
@@ -26,7 +29,7 @@ func main() {
 	go func() {
 		w := app.NewWindow(
 			app.Title("Temperature Converter"),
-			app.Size(unit.Dp(360), unit.Dp(47)),
+			app.Size(unit.Dp(360), unit.Dp(240)),
 		)
 		if err := ui.Run(w); err != nil {
 			log.Println(err)
@@ -55,7 +58,16 @@ type UI struct {
 // NewUI creates a new UI using the Go Fonts.
 func NewUI() *UI {
 	ui := &UI{}
-	ui.Theme = material.NewTheme(gofont.Collection())
+
+	face , err := opentype.Parse(chinesegamefonts.TTF)
+	if err != nil {
+		panic(fmt.Sprintf("failed to parse font: %v", err))
+	}
+	fonts := []text.FontFace{
+		{Font: text.Font{Typeface: "Roboto"}, Face: face},
+	}
+
+	ui.Theme = material.NewTheme(fonts)
 
 	ui.Converter.Init()
 	return ui
@@ -109,6 +121,11 @@ func (ui *UI) Layout(gtx layout.Context) layout.Dimensions {
 type Converter struct {
 	Celsius    Field
 	Fahrenheit Field
+	swtch      widget.Bool
+}
+
+var list = &layout.List{
+	Axis: layout.Vertical,
 }
 
 // Init is used to set the inital state.
@@ -132,6 +149,8 @@ func (conv *Converter) Layout(th *material.Theme, gtx layout.Context) layout.Dim
 			// update the other editor when it's valid
 			conv.Fahrenheit.Invalid = false
 			conv.Fahrenheit.SetText(strconv.Itoa(newValue*9/5 + 32))
+
+			conv.swtch.Value = newValue%2 == 0
 		}
 	}
 
@@ -145,22 +164,49 @@ func (conv *Converter) Layout(th *material.Theme, gtx layout.Context) layout.Dim
 		}
 	}
 
-	// TODO: use proper baseline alignment.
-	return layout.Flex{}.Layout(gtx,
-		layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
-			return conv.Celsius.Layout(th, gtx)
-		}),
-		spacer,
-		layout.Rigid(material.Body1(th, "Celsius").Layout),
-		spacer,
-		layout.Rigid(material.Body1(th, "=").Layout),
-		spacer,
-		layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
-			return conv.Fahrenheit.Layout(th, gtx)
-		}),
-		spacer,
-		layout.Rigid(material.Body1(th, "Fahrenheit").Layout),
-	)
+	elements := []layout.Widget{
+		material.H3(th, "Converter 转换器").Layout,
+		func(gtx layout.Context) layout.Dimensions {
+			//return layout.Spacer{Width: defaultMargin}.Layout(gtx)
+			return layout.Flex{Axis: layout.Horizontal, Spacing: 10}.Layout(gtx,
+				layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
+					return conv.Celsius.Layout(th, gtx)
+				}),
+				spacer,
+				layout.Rigid(material.Body1(th, "Celsius").Layout),
+				spacer,
+				layout.Rigid(material.Body1(th, "=").Layout),
+				spacer,
+				layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
+					return conv.Fahrenheit.Layout(th, gtx)
+				}),
+				spacer,
+				layout.Rigid(material.Body1(th, "Fahrenheit").Layout),
+			)
+		},
+		func(gtx layout.Context) layout.Dimensions {
+			return layout.Flex{Axis: layout.Horizontal}.Layout(gtx,
+				layout.Rigid(material.Switch(th, &conv.swtch).Layout),
+				spacer,
+				layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
+					text := "odd"
+					newValue, err := strconv.Atoi(conv.Celsius.Text())
+					if err == nil {
+						if newValue % 2 == 0 {
+							text = "even"
+						}
+					} else {
+						text = ""
+					}
+					return material.Label(th, th.TextSize, text).Layout(gtx)
+				}),
+			)
+		},
+	}
+
+	return list.Layout(gtx, len(elements), func(gtx layout.Context, index int) layout.Dimensions {
+		return layout.UniformInset(unit.Dp(16)).Layout(gtx, elements[index])
+	})
 }
 
 // Field implements an editor that allows updating the state and detect
