@@ -17,7 +17,6 @@ import (
 	"gioui.org/unit"            // unit is used to define pixel-independent sizes
 	"gioui.org/widget"          // widget contains state handling for widgets.
 	"gioui.org/widget/material" // material contains material design widgets.
-	"github.com/hajimehoshi/chinesegamefonts"
 )
 
 func main() {
@@ -29,7 +28,7 @@ func main() {
 	go func() {
 		w := app.NewWindow(
 			app.Title("Temperature Converter"),
-			app.Size(unit.Dp(360), unit.Dp(240)),
+			app.Size(unit.Dp(460), unit.Dp(340)),
 		)
 		if err := ui.Run(w); err != nil {
 			log.Println(err)
@@ -59,12 +58,12 @@ type UI struct {
 func NewUI() *UI {
 	ui := &UI{}
 
-	face , err := opentype.Parse(chinesegamefonts.TTF)
+	face , err := opentype.Parse(TTF)
 	if err != nil {
 		panic(fmt.Sprintf("failed to parse font: %v", err))
 	}
 	fonts := []text.FontFace{
-		{Font: text.Font{Typeface: "Roboto"}, Face: face},
+		{Font: text.Font{Typeface: "Source Han Sans SC"}, Face: face},
 	}
 
 	ui.Theme = material.NewTheme(fonts)
@@ -165,7 +164,7 @@ func (conv *Converter) Layout(th *material.Theme, gtx layout.Context) layout.Dim
 	}
 
 	elements := []layout.Widget{
-		material.H3(th, "Converter 转换器").Layout,
+		material.H5(th, "Converter 转换器").Layout,
 		func(gtx layout.Context) layout.Dimensions {
 			//return layout.Spacer{Width: defaultMargin}.Layout(gtx)
 			return layout.Flex{Axis: layout.Horizontal, Spacing: 10}.Layout(gtx,
